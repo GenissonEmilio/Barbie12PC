@@ -15,9 +15,13 @@ Instale Python 3, Git, CMake 3.21+, GCC 13 ou Clang recente e os pacotes de dese
 
 A compilação também aceita o kit Linux do GodOfWar2PC em `compiler/`, no diretório irmão do projeto ou no caminho indicado por `BARBIE_LINUX_KIT`.
 
+Com o kit incluso no pacote Linux, a compilação usa Python 3 e o compilador portátil. O kit requer glibc 2.39 ou mais recente. Reserve cerca de 4 GB livres para os arquivos preparados e a compilação.
+
 ## Windows
 
 Use PowerShell, Visual Studio 2022 Build Tools com **Desenvolvimento para Desktop com C++**, Windows SDK, CMake 3.21+, Git e Python 3. Para importar `.7z`, coloque o 7-Zip no PATH ou informe o caminho do executável com `-SevenZip`.
+
+O pacote Windows inclui o recompilador. CMake e o compilador do Visual Studio geram o executável do jogo durante a importação.
 
 ```powershell
 .\build-windows.ps1 -Disc 'C:\Jogos\Barbie in the 12 Dancing Princesses (USA).7z'

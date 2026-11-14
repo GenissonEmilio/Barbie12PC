@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory = $true)][string]$Disc,
     [string]$BuildRoot = (Join-Path $PSScriptRoot 'build'),
-    [string]$SevenZip = '7z'
+    [string]$SevenZip = '7z',
+    [string]$Recompiler = (Join-Path $PSScriptRoot 'compiler/bin/ps2_recomp.exe')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -11,7 +12,6 @@ $Disc = (Resolve-Path -LiteralPath $Disc).Path
 $BuildRoot = [IO.Path]::GetFullPath($BuildRoot)
 $Prepared = Join-Path $BuildRoot 'disc-work'
 $CMakeBuild = Join-Path $BuildRoot 'cmake'
-$Recompiler = Join-Path $CMakeBuild 'ps2xRecomp/Release/ps2_recomp.exe'
 $RuntimeSource = Join-Path $Base 'PS2Recomp'
 $Hook = Join-Path $PSScriptRoot 'tools/desktop.cmake'
 
@@ -33,10 +33,16 @@ $config = @(
 if (Test-Path -LiteralPath $Prepared) {
     throw "Escolha outro -BuildRoot ou remova a pasta de compilacao que voce gerou: $Prepared"
 }
-Invoke-Checked cmake ($config + @('-DPS2X_BUILD_RUNTIME=OFF', '-DBARBIE_BATCH_DIR='))
-Invoke-Checked cmake @('--build', $CMakeBuild, '--config', 'Release', '--target', 'ps2_recomp', '--parallel', '2')
+if (Test-Path -LiteralPath $Recompiler -PathType Leaf) {
+    $Recompiler = (Resolve-Path -LiteralPath $Recompiler).Path
+} else {
+    $Recompiler = Join-Path $CMakeBuild 'ps2xRecomp/Release/ps2_recomp.exe'
+    Invoke-Checked cmake ($config + @('-DPS2X_BUILD_RUNTIME=OFF', '-DBARBIE_BATCH_DIR='))
+    Invoke-Checked cmake @('--build', $CMakeBuild, '--config', 'Release', '--target', 'ps2_recomp', '--parallel', '2')
+}
 Invoke-Checked python @('-B', (Join-Path $PSScriptRoot 'tools/prepare.py'), $Disc, $Recompiler, $Prepared, '--7z', $SevenZip)
 Invoke-Checked cmake ($config + @(
+    '-DPS2X_BUILD_RECOMP=OFF',
     '-DPS2X_BUILD_RUNTIME=ON',
     "-DBARBIE_BATCH_DIR=$(Join-Path $Prepared 'batches')",
     "-DBARBIE_GENERATED_DIR=$(Join-Path $Prepared 'generated')",
