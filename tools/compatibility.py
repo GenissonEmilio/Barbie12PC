@@ -18,7 +18,10 @@ def prepare_dispatcher(base, destination):
         "            ps2_stubs::sceSifGetReg(rdram, ctx, runtime);\n"
         "            return true;\n"
     )
-    destination.write_text('#include "../Stubs/SIF.h"\n' + text.replace(anchor, sif_cases + anchor),
+    text = text.replace('#include "Common.h"', '#include "Syscalls/Common.h"')
+    text = text.replace('#include "Dispatcher.h"', '#include "Syscalls/Dispatcher.h"')
+    text = text.replace('#include "System.h"', '#include "Syscalls/System.h"')
+    destination.write_text('#include "Stubs/SIF.h"\n' + text.replace(anchor, sif_cases + anchor),
                            encoding="utf-8")
     return kernel / "Syscalls"
 
@@ -68,6 +71,7 @@ def prepare_video(base, destination):
                     ~CallbackScope() { --barbieMpegCallbackDepth; }
                 } callbackScope;
 """ + anchor)
+    mpeg = mpeg.replace('#include "Common.h"', '#include "Stubs/Common.h"')
     mpeg = "extern thread_local unsigned barbieMpegCallbackDepth;\n" + mpeg
     anchor = "bool EeScheduler::checkpointDue(uint32_t cycles) noexcept\n{\n    accountCycles(cycles);"
     if scheduler.count(anchor) != 1:
