@@ -39,9 +39,14 @@ function(barbie_add_desktop)
 
     if(WIN32)
         # The upstream declaration for this function is Linux-only.
+        if(MSVC)
+            set(presentation_header "/FI${BARBIE_SOURCE_DIR}/presentation.h")
+        else()
+            set(presentation_header -include "${BARBIE_SOURCE_DIR}/presentation.h")
+        endif()
         set_property(SOURCE "${CMAKE_SOURCE_DIR}/ps2xRuntime/src/lib/gs/gs_host_present.cpp"
             TARGET_DIRECTORY ps2_runtime APPEND PROPERTY COMPILE_OPTIONS
-            "/FI${BARBIE_SOURCE_DIR}/presentation.h")
+            ${presentation_header})
     endif()
 
     add_executable(Barbie12PC ${batches}
