@@ -29,7 +29,8 @@ jobs:
         shell: pwsh
         run: |
           $result = & ./build/cmake/ps2xRecomp/Release/ps2_recomp.exe 2>&1 | Out-String
-          if ($result -notmatch 'Usage:') { throw $result }
+          if ($LASTEXITCODE -ne 1 -or $result -notmatch 'Usage:') { throw $result }
+          exit 0
       - name: Stage a runtime link check
         shell: pwsh
         run: |
@@ -73,6 +74,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Desktop build failed.' }
           $result = & ./build/cmake/Release/Barbie12PC.exe 2>&1 | Out-String
           if ($LASTEXITCODE -ne 2 -or $result -notmatch 'Uso: Barbie12PC') { throw $result }
+          exit 0
       - uses: actions/upload-artifact@v4
         with:
           name: ps2-recomp-windows-x64
