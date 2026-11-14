@@ -14,7 +14,9 @@ if [[ ! -x "$kit/bin/ps2_recomp" ]]; then
 fi
 work=$2
 if [[ -x "$kit/bin/ps2_recomp" ]]; then
-    python3 -B "$project/tools/prepare.py" "$1" "$kit/bin/ps2_recomp" "$work"
+    kit=$(cd -- "$kit" && pwd)
+    LD_LIBRARY_PATH="$kit/toolchain/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        python3 -B "$project/tools/prepare.py" "$1" "$kit/bin/ps2_recomp" "$work"
     python3 -B "$project/tools/linux_build.py" "$kit" "$base" "$work/generated" "$work/batches" "$project/src"
 else
     cmake_build="${work%/}-cmake"
@@ -31,7 +33,7 @@ else
     cmake --build "$cmake_build" --target ps2_recomp --parallel 2
     python3 -B "$project/tools/prepare.py" "$1" "$cmake_build/ps2xRecomp/ps2_recomp" "$work"
     work=$(cd -- "$work" && pwd)
-    cmake "${config[@]}" -DPS2X_BUILD_RUNTIME=ON \
+    cmake "${config[@]}" -DPS2X_BUILD_RUNTIME=ON -DPS2X_BUILD_RECOMP=OFF \
         "-DBARBIE_BATCH_DIR=$work/batches" "-DBARBIE_GENERATED_DIR=$work/generated" \
         "-DBARBIE_SOURCE_DIR=$project/src"
     cmake --build "$cmake_build" --target Barbie12PC --parallel 2
