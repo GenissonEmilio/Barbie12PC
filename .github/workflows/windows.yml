@@ -1,0 +1,80 @@
+name: Windows desktop
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/windows.yml
+      - vendor/ps2-base/**
+      - tools/**
+      - src/**
+      - build-windows.ps1
+      - play-windows.ps1
+
+jobs:
+  tools:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure the desktop toolchain
+        run: >
+          cmake -S vendor/ps2-base/PS2Recomp -B build/cmake
+          -G 'Visual Studio 17 2022' -A x64
+          "-DCMAKE_PROJECT_PS2RetroX_INCLUDE=${{ github.workspace }}/tools/desktop.cmake"
+          -DPS2X_BUILD_TEST=OFF -DPS2X_BUILD_STUDIO=OFF -DPS2X_BUILD_ANALYZER=OFF
+          -DPS2X_BUILD_RUNTIME=OFF -DPS2X_ENABLE_SCCACHE=OFF
+      - name: Build the recompiler
+        run: cmake --build build/cmake --config Release --target ps2_recomp --parallel 2
+      - name: Check the tool's entry point
+        shell: pwsh
+        run: |
+          $result = & ./build/cmake/ps2xRecomp/Release/ps2_recomp.exe 2>&1 | Out-String
+          if ($result -notmatch 'Usage:') { throw $result }
+      - name: Stage a runtime link check
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, "tools")
+          from compatibility import prepare_dma, prepare_dispatcher, prepare_graphics, prepare_iop, prepare_video
+
+          base = Path("vendor/ps2-base")
+          work = Path("build/link-check")
+          batch = work / "batches"
+          batch.mkdir(parents=True)
+          (batch / "functions-0001.cpp").write_text("// No guest code in this check.\n")
+          (batch / "register_functions.cpp").write_text(
+              '#include "ps2_runtime.h"\n'
+              'extern const uint32_t g_ps2RecompiledFunctionTableBase = 0;\n'
+              'extern const uint32_t g_ps2RecompiledFunctionTableEnd = 0;\n'
+              'extern const uint32_t g_ps2RecompiledFunctionTableSlotCount = 0;\n'
+              'PS2Runtime::RecompiledFunction g_ps2RecompiledFunctionTable[1] = {};\n')
+          prepare_dispatcher(base, batch / "Dispatcher.cpp")
+          prepare_iop(base, work / "iop")
+          prepare_video(base, work / "video")
+          prepare_graphics(base, work / "video/gs_hw_backend.cpp")
+          prepare_dma(base, work / "video/ps2_memory.cpp")
+          '@ | python -B -
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime preparation failed.' }
+      - name: Configure the runtime
+        run: >
+          cmake -S vendor/ps2-base/PS2Recomp -B build/cmake
+          -DPS2X_BUILD_RUNTIME=ON -DPS2X_ENABLE_DEBUG_UI=OFF
+          -DPS2X_ENABLE_RUNNER_PCH=OFF -DPS2X_MSVC_MP_PROCESSES=1
+          -DPS2X_ENABLE_AGRESSIVE_LOGS=OFF -DPS2X_ENABLE_IOP_RPC_TRACE=OFF
+          "-DBARBIE_BATCH_DIR=${{ github.workspace }}/build/link-check/batches"
+          "-DBARBIE_GENERATED_DIR=${{ github.workspace }}/build/link-check/batches"
+          "-DBARBIE_SOURCE_DIR=${{ github.workspace }}/src"
+      - name: Build and start the host program
+        shell: pwsh
+        run: |
+          cmake --build build/cmake --config Release --target Barbie12PC --parallel 2
+          if ($LASTEXITCODE -ne 0) { throw 'Desktop build failed.' }
+          $result = & ./build/cmake/Release/Barbie12PC.exe 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 2 -or $result -notmatch 'Uso: Barbie12PC') { throw $result }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ps2-recomp-windows-x64
+          path: build/cmake/ps2xRecomp/Release/ps2_recomp.exe
+          if-no-files-found: error

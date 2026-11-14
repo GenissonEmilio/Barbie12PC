@@ -1,0 +1,8 @@
+/build/
+/work/
+/work-cmake/
+/compiler/
+/dist/
+__pycache__/
+*.iso
+*.7z
